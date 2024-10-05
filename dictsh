@@ -1,0 +1,34 @@
+#!/bin/bash
+
+#word=$(zenity --entry --text="diciosh: " --title="Word Input")
+word='iarque'
+
+if [ $? -eq 0 ]; then
+#    firefox "https://www.dicio.com.br/$word"
+
+#curl -X GET \
+#     -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0" \
+#     -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8" \
+#     -H "Accept-Language: en-US,en;q=0.5" \
+#     -H "Upgrade-Insecure-Requests: 1" \
+#     -H "Sec-Fetch-Dest: document" \
+#     -H "Sec-Fetch-Mode: navigate" \
+#     -H "Sec-Fetch-Site: same-origin" \
+#     -H "Sec-Fetch-User: ?1" \
+#     -H "Referer: https://www.sinonimos.com.br/" \
+#     https://www.sinonimos.com.br/busca.php?q=$word > tmp
+
+  cat tmp | tr '\n' ' ' | sed -e 's/^.*resultados//' | sed -e 's/sidebar.*$//' \
+  | sed -e 's/<[^>]*>//g' | grep -Po ': .*<' | sed -e 's/[^a-z]*//' \
+  | sed -e 's/  //g' | sed -e 's/S[^:]*//g' \
+  | sed -e 's/, /", "/g' | sed -e 's/^/"/' | sed -e 's/ : /": ["/g' \
+  | sed -e 's/\([a-z]\) \([a-z]\)/\1", "\2/g' \
+  | sed -e 's/, \("[a-z]\+":\)/], \1/g' \
+  | sed -e 's/^/{ /' | sed -e 's/ <$/"] }/' \
+  | cat
+
+#  | sed -e 's/{ /{\n/g' | sed -e 's/], /],\n/g' \
+#  | sed -e 's/ \[/\n \[/g' \
+#  | sed -e 's/ }/\n}/'
+
+fi
