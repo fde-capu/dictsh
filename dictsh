@@ -38,18 +38,18 @@ do
   keys=`echo "$json_data" | jq -r 'keys[]'`
   readarray -t key_array <<< "$keys"
 
-  echo "[ $word ]"
+  echo "[~$word~]"
   for key in "${key_array[@]}"; do
-    value=$(echo "$json_data" | jq -r ".${key}")
-    if [[ $(echo "$value" | jq -r 'type') == "array" ]]; then
+    value=$(echo "$json_data" | jq -r ".\"${key}\"")
+    if [[ $(echo "$value" | jq -cr 'type') == "array" ]]; then
       echo -en "- $key:\n  "
-      echo "$value" | jq -r '.[]' | while read element; do
+      echo "$value" | jq -r ".[]" | while read element; do
         echo -n "$element "
       done
       echo
     else
       echo "ERROR ($word)"
-      cat tmp
+      head tmp
     fi
   done
 
