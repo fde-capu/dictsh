@@ -15,7 +15,9 @@ do
   word="$1"
 # word=$(zenity --entry --text="diciosh: " --title="Word Input")
 
-  curl -sX GET \
+  echo '' > tmp
+
+  curl -LsX GET \
   -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0" \
   -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8" \
   -H "Accept-Language: en-US,en;q=0.5" \
@@ -25,17 +27,31 @@ do
   -H "Sec-Fetch-Site: same-origin" \
   -H "Sec-Fetch-User: ?1" \
   -H "Referer: https://www.sinonimos.com.br/" \
-  https://www.sinonimos.com.br/busca.php?q=$word > tmp
+  https://www.sinonimos.com.br/busca.php?q=$word 1>>tmp 2>>tmp
 
-  if [[ $(cat tmp | grep 'ZeroResults') ]]; then
+  type=''
+  caption=''
+  mark=''
+  sep=''
+
+  if [[ $(cat tmp | grep 'sem-resultados') ]]; then
     type='NOT_FOUND'
+    caption="[$word?]"
   elif [[ $(cat tmp | grep 'busca-resultados') ]]; then
     type='SIMILAR';
+    caption="[$word?]"
+    mark=' ~ '
+    sep='; '
+  elif [[ $(cat tmp | grep '"total"') ]]; then
+    type='FOUND';
+    caption="[$word]"
+    mark=' - '
+    sep='; '
   fi
 
   case $type in
     'NOT_FOUND')
-      echo $word? && exit 1
+      shift && continue
     ;;
     'SIMILAR')
       json_data=`cat tmp | tr '\n' ' ' | sed -e 's/^.*resultados//' | sed -e 's/sidebar.*$//' \
@@ -45,28 +61,44 @@ do
       | sed -e 's/\([a-z]\) \([a-z]\)/\1", "\2/g' \
       | sed -e 's/, \("[a-z]\+":\)/], \1/g' \
       | sed -e 's/^/{ /' | sed -e 's/ <$/"] }/'`
-      keys=`echo "$json_data" | jq -r 'keys[]'`
-      readarray -t key_array <<< "$keys"
-      echo "[~$word?~]"
-      for key in "${key_array[@]}"; do
-        value=$(echo "$json_data" | jq -r ".\"${key}\"")
-        if [[ $(echo "$value" | jq -cr 'type') == "array" ]]; then
-          echo -en " ~$key:\n  "
-          echo "$value" | jq -r ".[]" | while read element; do
-            echo -n "$element "
-          done
-          echo
-        else
-          echo "ERROR ($word)"
-          head tmp
-        fi
-      done
+    ;;
+    'FOUND')
+      json_data=`cat tmp | tr '\n' ' ' | sed -e 's/^.*"total"//' \
+      | sed -e 's/Não encontrou.*$//' \
+      | sed -e 's/<[^>]*>//g' \
+      | grep -Po ': .*' \
+      | sed -e 's/ Use a nossa.*});//' \
+      | sed -e 's/^:[^A-Z]*//' \
+      | sed -e 's/\([A-Z][^:]*\):/"\1": [ /g' \
+      | sed -e 's/[0-9]\{1,\} \([^\.]\{1,\}\)/"\1"/g' \
+      | sed -e 's/"\.[^"]\{1,\}/" ], /g' \
+      | sed -e 's/"."/", "/g' \
+      | sed -e 's/, "[^"]*"$/ }/' \
+      | sed -e 's/^/{ /'`
     ;;
     *)
-      echo 'nada' && exit 1
+      echo "Error." && shift && continue
     ;;
   esac
 
+  echo $caption
+
+  keys=`echo "$json_data" | jq -r 'keys[]'`
+  readarray -t key_array <<< "$keys"
+  for key in "${key_array[@]}"; do
+    value=$(echo "$json_data" | jq -r ".\"${key}\"")
+    if [[ $(echo "$value" | jq -cr 'type') == "array" ]]; then
+      echo -en "$mark$key:\n  "
+      echo "$value" | jq -r ".[]" | while read element; do
+        echo -n "$element$sep"
+      done
+      echo
+    else
+      echo "ERROR ($word)"
+      head tmp
+    fi
+  done
+
 shift
 done
-rm tmp
+#rm tmp
