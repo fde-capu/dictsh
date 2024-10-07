@@ -27,6 +27,11 @@ do
   -H "Referer: https://www.sinonimos.com.br/" \
   https://www.sinonimos.com.br/busca.php?q=$word > tmp
 
+  if [[ $(cat tmp | grep ZeroResults) ]]; then
+    echo $word?
+    exit 1
+  fi
+
   json_data=`cat tmp | tr '\n' ' ' | sed -e 's/^.*resultados//' | sed -e 's/sidebar.*$//' \
   | sed -e 's/<[^>]*>//g' | grep -Po ': .*<' | sed -e 's/[^a-z]*//' \
   | sed -e 's/  //g' | sed -e 's/S[^:]*//g' \
@@ -38,11 +43,11 @@ do
   keys=`echo "$json_data" | jq -r 'keys[]'`
   readarray -t key_array <<< "$keys"
 
-  echo "[~$word~]"
+  echo "[~$word?~]"
   for key in "${key_array[@]}"; do
     value=$(echo "$json_data" | jq -r ".\"${key}\"")
     if [[ $(echo "$value" | jq -cr 'type') == "array" ]]; then
-      echo -en "- $key:\n  "
+      echo -en " ~$key:\n  "
       echo "$value" | jq -r ".[]" | while read element; do
         echo -n "$element "
       done
