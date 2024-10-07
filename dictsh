@@ -49,6 +49,8 @@ do
     sep='; '
   fi
 
+  echo $caption
+
   case $type in
     'NOT_FOUND')
       shift && continue
@@ -80,8 +82,6 @@ do
       echo "Error." && shift && continue
     ;;
   esac
-
-  echo $caption
 
   keys=`echo "$json_data" | jq -r 'keys[]'`
   readarray -t key_array <<< "$keys"
