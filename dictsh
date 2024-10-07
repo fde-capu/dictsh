@@ -27,36 +27,45 @@ do
   -H "Referer: https://www.sinonimos.com.br/" \
   https://www.sinonimos.com.br/busca.php?q=$word > tmp
 
-  if [[ $(cat tmp | grep ZeroResults) ]]; then
-    echo $word?
-    exit 1
+  if [[ $(cat tmp | grep 'ZeroResults') ]]; then
+    type='NOT_FOUND'
+  elif [[ $(cat tmp | grep 'busca-resultados') ]]; then
+    type='SIMILAR';
   fi
 
-  json_data=`cat tmp | tr '\n' ' ' | sed -e 's/^.*resultados//' | sed -e 's/sidebar.*$//' \
-  | sed -e 's/<[^>]*>//g' | grep -Po ': .*<' | sed -e 's/[^a-z]*//' \
-  | sed -e 's/  //g' | sed -e 's/S[^:]*//g' \
-  | sed -e 's/, /", "/g' | sed -e 's/^/"/' | sed -e 's/ : /": ["/g' \
-  | sed -e 's/\([a-z]\) \([a-z]\)/\1", "\2/g' \
-  | sed -e 's/, \("[a-z]\+":\)/], \1/g' \
-  | sed -e 's/^/{ /' | sed -e 's/ <$/"] }/'`
-
-  keys=`echo "$json_data" | jq -r 'keys[]'`
-  readarray -t key_array <<< "$keys"
-
-  echo "[~$word?~]"
-  for key in "${key_array[@]}"; do
-    value=$(echo "$json_data" | jq -r ".\"${key}\"")
-    if [[ $(echo "$value" | jq -cr 'type') == "array" ]]; then
-      echo -en " ~$key:\n  "
-      echo "$value" | jq -r ".[]" | while read element; do
-        echo -n "$element "
+  case $type in
+    'NOT_FOUND')
+      echo $word? && exit 1
+    ;;
+    'SIMILAR')
+      json_data=`cat tmp | tr '\n' ' ' | sed -e 's/^.*resultados//' | sed -e 's/sidebar.*$//' \
+      | sed -e 's/<[^>]*>//g' | grep -Po ': .*<' | sed -e 's/[^a-z]*//' \
+      | sed -e 's/  //g' | sed -e 's/S[^:]*//g' \
+      | sed -e 's/, /", "/g' | sed -e 's/^/"/' | sed -e 's/ : /": ["/g' \
+      | sed -e 's/\([a-z]\) \([a-z]\)/\1", "\2/g' \
+      | sed -e 's/, \("[a-z]\+":\)/], \1/g' \
+      | sed -e 's/^/{ /' | sed -e 's/ <$/"] }/'`
+      keys=`echo "$json_data" | jq -r 'keys[]'`
+      readarray -t key_array <<< "$keys"
+      echo "[~$word?~]"
+      for key in "${key_array[@]}"; do
+        value=$(echo "$json_data" | jq -r ".\"${key}\"")
+        if [[ $(echo "$value" | jq -cr 'type') == "array" ]]; then
+          echo -en " ~$key:\n  "
+          echo "$value" | jq -r ".[]" | while read element; do
+            echo -n "$element "
+          done
+          echo
+        else
+          echo "ERROR ($word)"
+          head tmp
+        fi
       done
-      echo
-    else
-      echo "ERROR ($word)"
-      head tmp
-    fi
-  done
+    ;;
+    *)
+      echo 'nada' && exit 1
+    ;;
+  esac
 
 shift
 done
