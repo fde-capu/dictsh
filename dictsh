@@ -15,7 +15,7 @@ do
   word="$1"
 # word=$(zenity --entry --text="diciosh: " --title="Word Input")
 
-  echo '' > tmp
+  tmp=$(mktemp)
 
   curl -LsX GET \
   -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0" \
@@ -27,22 +27,22 @@ do
   -H "Sec-Fetch-Site: same-origin" \
   -H "Sec-Fetch-User: ?1" \
   -H "Referer: https://www.sinonimos.com.br/" \
-  https://www.sinonimos.com.br/busca.php?q=$word 1>>tmp 2>>tmp
+  https://www.sinonimos.com.br/busca.php?q=$word 1>$tmp
 
   type=''
   caption=''
   mark=''
   sep=''
 
-  if [[ $(cat tmp | grep 'sem-resultados') ]]; then
+  if [[ $(cat $tmp | grep 'sem-resultados') ]]; then
     type='NOT_FOUND'
     caption="[$word?]"
-  elif [[ $(cat tmp | grep 'busca-resultados') ]]; then
+  elif [[ $(cat $tmp | grep 'busca-resultados') ]]; then
     type='SIMILAR';
     caption="[$word?]"
     mark=' ~ '
     sep='; '
-  elif [[ $(cat tmp | grep '"total"') ]]; then
+  elif [[ $(cat $tmp | grep '"total"') ]]; then
     type='FOUND';
     caption="[$word]"
     mark=' - '
@@ -56,7 +56,8 @@ do
       shift && continue
     ;;
     'SIMILAR')
-      json_data=`cat tmp | tr '\n' ' ' | sed -e 's/^.*resultados//' | sed -e 's/sidebar.*$//' \
+      json_data=`cat $tmp | tr '\n' ' ' | sed -e 's/^.*resultados//' \
+      | sed -e 's/sidebar.*$//' \
       | sed -e 's/<[^>]*>//g' | grep -Po ': .*<' | sed -e 's/[^a-z]*//' \
       | sed -e 's/  //g' | sed -e 's/S[^:]*//g' \
       | sed -e 's/, /", "/g' | sed -e 's/^/"/' | sed -e 's/ : /": ["/g' \
@@ -65,7 +66,7 @@ do
       | sed -e 's/^/{ /' | sed -e 's/ <$/"] }/'`
     ;;
     'FOUND')
-      json_data=`cat tmp | tr '\n' ' ' | sed -e 's/^.*"total"//' \
+      json_data=`cat $tmp | tr '\n' ' ' | sed -e 's/^.*"total"//' \
       | sed -e 's/Não encontrou.*$//' \
       | sed -e 's/<[^>]*>//g' \
       | grep -Po ': .*' \
@@ -95,10 +96,10 @@ do
       echo
     else
       echo "ERROR ($word)"
-      head tmp
+      head $tmp
     fi
   done
 
 shift
 done
-#rm tmp
+rm $tmp
