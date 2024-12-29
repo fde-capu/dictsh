@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Description.
+# Fetches sinonimos.com.br for word definition.
 #
 if [ -z "$1" ]; then
   echo "Usage: $0 palavra [palavra ...]"
@@ -66,7 +66,8 @@ do
       | sed -e 's/^/{ /' | sed -e 's/ <$/"] }/'`
     ;;
     'FOUND')
-      json_data=`cat $tmp | tr '\n' ' ' | sed -e 's/^.*"total"//' \
+      json_data=`cat $tmp | tr '\n' ' ' \
+      | sed -e 's/^.*"total"//' \
       | sed -e 's/Não encontrou.*$//' \
       | sed -e 's/<[^>]*>//g' \
       | grep -Po ': .*' \
@@ -80,10 +81,11 @@ do
       | sed -e 's/^/{ /'`
     ;;
     *)
-      echo "Error." && shift && continue
+      echo "Error ($word)." && shift && continue
     ;;
   esac
 
+  rm -f error_dictsh
   keys=`echo "$json_data" | jq -r 'keys[]'`
   readarray -t key_array <<< "$keys"
   for key in "${key_array[@]}"; do
@@ -96,7 +98,9 @@ do
       echo
     else
       echo "ERROR ($word)"
-      head $tmp
+      echo "$json_data"
+      cat $tmp > error_dictsh
+      echo "Veja ./error_dictsh"
     fi
   done
 
